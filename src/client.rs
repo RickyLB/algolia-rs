@@ -1,8 +1,9 @@
 use crate::{
     app_id::{AppId, RefAppId},
+    host::Host,
     request::PartialUpdateQuery,
     response::{ObjectDeleteResponse, ObjectUpdateResponse},
-    ApiKey, BoxError, HOST_FALLBACK_LIST, host::Host,
+    ApiKey, BoxError, HOST_FALLBACK_LIST,
 };
 use rand::seq::SliceRandom;
 use reqwest::header::{HeaderMap, HeaderValue};
@@ -11,14 +12,18 @@ use std::{fmt, future::Future, time::Duration};
 // todo: make the ApiKey a `RefApiKey`
 fn reqwest_client(app_id: &RefAppId, api_key: &ApiKey) -> reqwest::Result<reqwest::Client> {
     let mut headers = HeaderMap::new();
+
     headers.append(
         "X-Algolia-Application-Id",
         HeaderValue::from_str(app_id.as_str()).expect("app_id wasn't valid as a header?"),
     );
-    headers.append(
-        "X-Algolia-API-Key",
-        HeaderValue::from_str(&api_key.0).expect("api_key wasn't valid as a header?"),
-    );
+
+    let mut api_key_header =
+        HeaderValue::from_str(&api_key.0).expect("api_key wasn't valid as a header?");
+
+    api_key_header.set_sensitive(true);
+
+    headers.append("X-Algolia-API-Key", api_key_header);
 
     reqwest::ClientBuilder::new()
         .default_headers(headers)
@@ -46,6 +51,7 @@ impl fmt::Display for ObjectRoute<'_> {
     }
 }
 
+#[derive(Clone, Debug)]
 pub struct Client {
     client: reqwest::Client,
     application_id: AppId,
