@@ -1,12 +1,13 @@
 use crate::{
     app_id::{AppId, RefAppId},
     host::Host,
-    request::PartialUpdateQuery,
-    response::{ObjectDeleteResponse, ObjectUpdateResponse},
+    request::{PartialUpdateQuery, SearchQuery},
+    response::{ObjectDeleteResponse, ObjectUpdateResponse, SearchResponse},
     ApiKey, BoxError, HOST_FALLBACK_LIST,
 };
 use rand::seq::SliceRandom;
 use reqwest::header::{HeaderMap, HeaderValue};
+use serde::de::DeserializeOwned;
 use std::{fmt, future::Future, time::Duration};
 
 // todo: make the ApiKey a `RefApiKey`
@@ -33,6 +34,23 @@ fn reqwest_client(app_id: &RefAppId, api_key: &ApiKey) -> reqwest::Result<reqwes
         .build()
 }
 
+struct IndexRoute<'a> {
+    index_name: &'a str,
+    query: bool,
+}
+
+impl fmt::Display for IndexRoute<'_> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "indexes/{}", self.index_name)?;
+
+        if self.query {
+            f.write_str("/query")?;
+        }
+
+        Ok(())
+    }
+}
+
 struct ObjectRoute<'a> {
     index_name: &'a str,
     object_id: &'a str,
@@ -41,7 +59,7 @@ struct ObjectRoute<'a> {
 
 impl fmt::Display for ObjectRoute<'_> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "1/indexes/{}/{}", self.index_name, self.object_id)?;
+        write!(f, "indexes/{}/{}", self.index_name, self.object_id)?;
 
         if self.partial {
             f.write_str("/partial")?;
@@ -84,7 +102,7 @@ impl Client {
 
         for backup_number in std::iter::once(0).chain(fallback_order.iter().copied()) {
             match f(format!(
-                "https://{}/{}",
+                "https://{}/1/{}",
                 Host::with_backup(&self.application_id, Some(backup_number)),
                 &route,
             ))
@@ -97,6 +115,50 @@ impl Client {
         }
 
         todo!("what happens when we run out of timeout checks")
+    }
+
+    pub async fn search<T: DeserializeOwned>(
+        &self,
+        index: &str,
+        request: SearchQuery,
+    ) -> Result<SearchResponse<T>, BoxError> {
+        #[derive(serde::Serialize)]
+        struct Request<'a> {
+            params: &'a str,
+        }
+
+        let request = serde_urlencoded::to_string(request).expect("request should be serializable");
+        let request = &*request;
+
+        self.retry_with(
+            IndexRoute {
+                index_name: index,
+                query: true,
+            },
+            |url| async move {
+                let mut req = self.client.post(&url);
+
+                req = req.json(&Request { params: request });
+
+                let resp = match req.send().await {
+                    Ok(resp) => resp,
+                    Err(e) if e.is_timeout() => return Ok(None),
+                    Err(e) => return Err(e.into()),
+                };
+
+                // presumably we should try again if the server messed up?
+                if resp.status().is_server_error() {
+                    return Ok(None);
+                }
+
+                if resp.status().is_client_error() {
+                    todo!("What error for `400` for this route?")
+                }
+
+                Ok(Some(resp.json().await?))
+            },
+        )
+        .await
     }
 
     /// Add or replace an object with a given object ID.
