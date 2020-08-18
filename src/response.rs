@@ -26,26 +26,26 @@ pub struct ObjectDeleteResponse {
 #[derive(Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct SearchResponse<T> {
-    hits: Vec<Hit<T>>,
+    pub hits: Vec<Hit<T>>,
 
-    page: usize,
+    pub page: usize,
 
     #[serde(rename = "nbHits")]
-    hit_count: usize,
+    pub hit_count: usize,
 
     #[serde(rename = "nbPages")]
-    page_count: usize,
+    pub page_count: usize,
 
-    hits_per_page: usize,
+    pub hits_per_page: usize,
 
     #[serde(rename = "processingTimeMS")]
-    processing_time_ms: usize,
+    pub processing_time_ms: usize,
 
-    query: String,
+    pub query: String,
 
-    parsed_query: String,
+    pub parsed_query: String,
 
-    params: String,
+    pub params: String,
 }
 
 #[derive(Deserialize, Debug)]
@@ -54,6 +54,7 @@ pub struct Hit<T> {
     #[serde(rename = "objectID")]
     pub object_id: String,
 
+    // this can be single OR Vec, handle both cases
     #[serde(rename = "_highlightResult")]
     #[serde(default)]
     pub highlight_result: HashMap<String, HighlightResult>,
@@ -65,21 +66,34 @@ pub struct Hit<T> {
     #[serde(rename = "_rankingInfo")]
     pub ranking_info: Option<RankingInfo>,
 
+    #[serde(rename = "_distinctSeqID")]
+    pub distinct_seq_id: Option<usize>,
+
     #[serde(flatten)]
     pub inner: T,
+}
+
+#[derive(Eq, PartialEq, Deserialize)]
+#[serde(untagged)]
+#[serde(rename_all = "camelCase")]
+enum MatchLevel {
+    None,
+    Partial,
+    Full,
 }
 
 #[derive(Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct HighlightResult {
     pub value: String,
-    pub match_level: String,
+    pub match_level: MatchLevel,
 }
 
 #[derive(Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct SnippetResult {
     pub value: String,
+    pub match_level: MatchLevel,
 }
 
 #[derive(Deserialize, Debug)]
