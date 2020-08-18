@@ -54,7 +54,7 @@ pub struct Hit<T> {
     #[serde(rename = "objectID")]
     pub object_id: String,
 
-    // this can be single OR Vec, handle both cases
+    // todo: this can be single OR Vec, handle both cases
     #[serde(rename = "_highlightResult")]
     #[serde(default)]
     pub highlight_result: HashMap<String, HighlightResult>,
@@ -73,10 +73,10 @@ pub struct Hit<T> {
     pub inner: T,
 }
 
-#[derive(Eq, PartialEq, Deserialize)]
+#[derive(Eq, PartialEq, Deserialize, Debug)]
 #[serde(untagged)]
 #[serde(rename_all = "camelCase")]
-enum MatchLevel {
+pub enum MatchLevel {
     None,
     Partial,
     Full,
