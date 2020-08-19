@@ -1,3 +1,4 @@
+use crate::task::{TaskId, TaskStatus};
 use chrono::{DateTime, Utc};
 use serde::Deserialize;
 use std::collections::HashMap;
@@ -8,7 +9,7 @@ pub struct ObjectUpdateResponse {
     pub updated_at: DateTime<Utc>,
 
     #[serde(rename = "taskID")]
-    pub task_id: usize,
+    pub task_id: TaskId,
 
     #[serde(rename = "objectID")]
     pub object_id: String,
@@ -20,7 +21,7 @@ pub struct ObjectDeleteResponse {
     pub deleted_at: DateTime<Utc>,
 
     #[serde(rename = "taskID")]
-    pub task_id: usize,
+    pub task_id: TaskId,
 }
 
 #[derive(Deserialize, Debug)]
@@ -74,7 +75,6 @@ pub struct Hit<T> {
 }
 
 #[derive(Eq, PartialEq, Deserialize, Debug)]
-#[serde(untagged)]
 #[serde(rename_all = "camelCase")]
 pub enum MatchLevel {
     None,
@@ -114,4 +114,11 @@ pub struct RankingInfo {
 
     #[serde(rename = "nbExactWords")]
     pub exact_word_count: usize,
+}
+
+#[derive(Deserialize, Debug)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct TaskStatusResponse {
+    pub status: TaskStatus,
+    pub pending_task: bool,
 }

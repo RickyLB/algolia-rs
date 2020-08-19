@@ -5,6 +5,7 @@ mod client;
 mod host;
 pub mod request;
 pub mod response;
+pub mod task;
 
 pub use app_id::{AppId, RefAppId};
 pub use client::Client;

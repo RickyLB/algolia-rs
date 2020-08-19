@@ -2,7 +2,8 @@ use crate::{
     app_id::{AppId, RefAppId},
     host::Host,
     request::{PartialUpdateQuery, SearchQuery},
-    response::{ObjectDeleteResponse, ObjectUpdateResponse, SearchResponse},
+    response::{ObjectDeleteResponse, ObjectUpdateResponse, SearchResponse, TaskStatusResponse},
+    task::{TaskId, TaskStatus},
     ApiKey, BoxError, HOST_FALLBACK_LIST,
 };
 use rand::seq::SliceRandom;
@@ -69,6 +70,19 @@ impl fmt::Display for ObjectRoute<'_> {
     }
 }
 
+struct TaskRoute<'a> {
+    index_name: &'a str,
+    task_id: TaskId,
+}
+
+impl fmt::Display for TaskRoute<'_> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "indexes/{}/task/{}", self.index_name, self.task_id.0)?;
+
+        Ok(())
+    }
+}
+
 #[derive(Clone, Debug)]
 pub struct Client {
     client: reqwest::Client,
@@ -115,6 +129,36 @@ impl Client {
         }
 
         todo!("what happens when we run out of timeout checks")
+    }
+
+    pub async fn task_status(&self, index: &str, task_id: TaskId) -> Result<TaskStatus, BoxError> {
+        self.retry_with(
+            TaskRoute {
+                index_name: index,
+                task_id,
+            },
+            |url| async move {
+                let resp = match self.client.get(&url).send().await {
+                    Ok(resp) => resp,
+                    Err(e) if e.is_timeout() => return Ok(None),
+                    Err(e) => return Err(e.into()),
+                };
+
+                // presumably we should try again if the server messed up?
+                if resp.status().is_server_error() {
+                    return Ok(None);
+                }
+
+                if resp.status().is_client_error() {
+                    todo!("What error for `400` for this route?")
+                }
+
+                let resp: TaskStatusResponse = resp.json().await?;
+
+                Ok(Some(resp.status))
+            },
+        )
+        .await
     }
 
     pub async fn search<T: DeserializeOwned>(
