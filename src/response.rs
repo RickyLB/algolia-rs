@@ -43,7 +43,7 @@ pub struct SearchResponse<T> {
 
     pub query: String,
 
-    pub parsed_query: String,
+    pub parsed_query: Option<String>,
 
     pub params: String,
 }

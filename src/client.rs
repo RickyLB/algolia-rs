@@ -188,6 +188,7 @@ impl Client {
                 }
 
                 if resp.status().is_client_error() {
+                    // probably some kind of "your `body` doesn't make sense"
                     todo!("What error for `400` for this route?")
                 }
 
