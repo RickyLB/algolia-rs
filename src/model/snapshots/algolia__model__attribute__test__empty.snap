@@ -1,0 +1,5 @@
+---
+source: src/model/attribute.rs
+expression: "SearchableAttributes::build().finish()"
+---
+[]

@@ -1,4 +1,4 @@
-use crate::task::{TaskId, TaskStatus};
+use crate::model::task::{TaskId, TaskStatus};
 use chrono::{DateTime, Utc};
 use serde::Deserialize;
 use std::collections::HashMap;
@@ -121,4 +121,13 @@ pub struct RankingInfo {
 pub(crate) struct TaskStatusResponse {
     pub status: TaskStatus,
     pub pending_task: bool,
+}
+
+#[derive(Deserialize, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct SettingsUpdateResponse {
+    pub updated_at: DateTime<Utc>,
+
+    #[serde(rename = "taskID")]
+    pub task_id: TaskId,
 }

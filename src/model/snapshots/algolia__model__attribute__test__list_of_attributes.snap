@@ -1,0 +1,10 @@
+---
+source: src/model/attribute.rs
+expression: "SearchableAttributes::build().single(Attribute(\"a\".to_owned())).multi(vec![Attribute(\"b\"\n                                                                                     .\n                                                                                     to_owned()),\n                                                                           Attribute(\"c\"\n                                                                                     .\n                                                                                     to_owned())]).single_unordered(Attribute(\"e\".to_owned())).multi_unordered(vec![Attribute(\"f\"\n                                                                                                                                                                              .\n                                                                                                                                                                              to_owned()),\n                                                                                                                                                                    Attribute(\"g\"\n                                                                                                                                                                              .\n                                                                                                                                                                              to_owned())]).finish()"
+---
+[
+  "a",
+  "b,c",
+  "unordered(e)",
+  "unordered(f,g)"
+]

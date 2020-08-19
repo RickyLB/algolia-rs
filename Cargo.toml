@@ -25,3 +25,6 @@ features = ["json"]
 [dependencies.tokio]
 version = "0.2.22"
 features = ["macros"]
+
+[dev-dependencies]
+insta = "0.16.1"

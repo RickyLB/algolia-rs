@@ -1,9 +1,12 @@
 use crate::{
     app_id::{AppId, RefAppId},
     host::Host,
-    request::{PartialUpdateQuery, SearchQuery},
-    response::{ObjectDeleteResponse, ObjectUpdateResponse, SearchResponse, TaskStatusResponse},
-    task::{TaskId, TaskStatus},
+    model::task::{TaskId, TaskStatus},
+    request::{PartialUpdateQuery, SearchQuery, SetSettings},
+    response::{
+        ObjectDeleteResponse, ObjectUpdateResponse, SearchResponse, SettingsUpdateResponse,
+        TaskStatusResponse,
+    },
     ApiKey, BoxError, HOST_FALLBACK_LIST,
 };
 use rand::seq::SliceRandom;
@@ -35,17 +38,32 @@ fn reqwest_client(app_id: &RefAppId, api_key: &ApiKey) -> reqwest::Result<reqwes
         .build()
 }
 
+#[derive(Copy, Clone)]
+enum IndexRouteKind {
+    Query,
+    Settings,
+}
+
+impl fmt::Display for IndexRouteKind {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Query => f.write_str("query"),
+            Self::Settings => f.write_str("settings"),
+        }
+    }
+}
+
 struct IndexRoute<'a> {
     index_name: &'a str,
-    query: bool,
+    kind: Option<IndexRouteKind>,
 }
 
 impl fmt::Display for IndexRoute<'_> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "indexes/{}", self.index_name)?;
 
-        if self.query {
-            f.write_str("/query")?;
+        if let Some(kind) = self.kind {
+            write!(f, "/{}", kind)?;
         }
 
         Ok(())
@@ -131,6 +149,38 @@ impl Client {
         todo!("what happens when we run out of timeout checks")
     }
 
+    pub async fn set_settings(
+        &self,
+        index: &str,
+        req: &SetSettings,
+    ) -> Result<SettingsUpdateResponse, BoxError> {
+        self.retry_with(
+            IndexRoute {
+                index_name: index,
+                kind: Some(IndexRouteKind::Settings),
+            },
+            |url| async move {
+                let resp = match self.client.put(&url).json(req).send().await {
+                    Ok(resp) => resp,
+                    Err(e) if e.is_timeout() => return Ok(None),
+                    Err(e) => return Err(e.into()),
+                };
+
+                // presumably we should try again if the server messed up?
+                if resp.status().is_server_error() {
+                    return Ok(None);
+                }
+
+                if resp.status().is_client_error() {
+                    todo!("What error for `400` for this route?")
+                }
+
+                Ok(Some(resp.json().await?))
+            },
+        )
+        .await
+    }
+
     pub async fn task_status(&self, index: &str, task_id: TaskId) -> Result<TaskStatus, BoxError> {
         self.retry_with(
             TaskRoute {
@@ -177,7 +227,7 @@ impl Client {
         self.retry_with(
             IndexRoute {
                 index_name: index,
-                query: true,
+                kind: Some(IndexRouteKind::Query),
             },
             |url| async move {
                 let mut req = self.client.post(&url);

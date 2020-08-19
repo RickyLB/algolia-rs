@@ -1,3 +1,5 @@
+use crate::model::attribute::SearchableAttributes;
+
 fn check_hits_per_page(max_hits: &Option<u16>) -> bool {
     max_hits.map_or(true, |hits| hits == 20)
 }
@@ -45,4 +47,9 @@ impl Default for PartialUpdateQuery {
             create_if_not_exists: true,
         }
     }
+}
+
+#[derive(serde::Serialize, Debug, Default)]
+pub struct SetSettings {
+    searchable_attributes: Option<SearchableAttributes>,
 }
