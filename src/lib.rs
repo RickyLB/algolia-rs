@@ -6,14 +6,13 @@ mod host;
 pub mod request;
 pub mod response;
 pub mod model;
+pub mod error;
 
+pub use error::{Error, Result, BoxError};
 pub use app_id::{AppId, RefAppId};
 pub use client::Client;
 
 const HOST_FALLBACK_LIST: &[usize] = &[1, 2, 3];
-
-/// Internal use type alias
-pub type BoxError = Box<dyn std::error::Error + 'static + Send + Sync>;
 
 #[derive(Clone)]
 // TODO: make an invariant that this _must_ be valid visible-ascii

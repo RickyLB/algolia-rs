@@ -7,10 +7,13 @@ use crate::{
         ObjectDeleteResponse, ObjectUpdateResponse, SearchResponse, SettingsUpdateResponse,
         TaskStatusResponse,
     },
-    ApiKey, BoxError, HOST_FALLBACK_LIST,
+    ApiKey, Error, Result, HOST_FALLBACK_LIST,
 };
 use rand::seq::SliceRandom;
-use reqwest::header::{HeaderMap, HeaderValue};
+use reqwest::{
+    header::{HeaderMap, HeaderValue},
+    StatusCode,
+};
 use serde::de::DeserializeOwned;
 use std::{fmt, future::Future, time::Duration};
 
@@ -109,8 +112,9 @@ pub struct Client {
 }
 
 impl Client {
-    pub fn new(application_id: AppId, api_key: ApiKey) -> Result<Self, BoxError> {
-        let client = reqwest_client(&application_id, &api_key)?;
+    pub fn new(application_id: AppId, api_key: ApiKey) -> Result<Self> {
+        let client = reqwest_client(&application_id, &api_key)
+            .map_err(|it| Error::Configuration(Box::new(it)))?;
 
         Ok(Self {
             client,
@@ -122,13 +126,13 @@ impl Client {
     async fn retry_with<
         T: fmt::Display,
         O,
-        Fut: Future<Output = Result<Option<O>, BoxError>>,
+        Fut: Future<Output = Result<Option<O>>>,
         Fn: FnMut(String) -> Fut,
     >(
         &self,
         route: T,
         mut f: Fn,
-    ) -> Result<O, BoxError> {
+    ) -> Result<O> {
         let mut fallback_order = HOST_FALLBACK_LIST.to_vec();
         fallback_order.shuffle(&mut rand::thread_rng());
 
@@ -146,14 +150,14 @@ impl Client {
             }
         }
 
-        todo!("what happens when we run out of timeout checks")
+        Err(Error::Timeout)
     }
 
     pub async fn set_settings(
         &self,
         index: &str,
         req: &SetSettings,
-    ) -> Result<SettingsUpdateResponse, BoxError> {
+    ) -> Result<SettingsUpdateResponse> {
         self.retry_with(
             IndexRoute {
                 index_name: index,
@@ -163,7 +167,7 @@ impl Client {
                 let resp = match self.client.put(&url).json(req).send().await {
                     Ok(resp) => resp,
                     Err(e) if e.is_timeout() => return Ok(None),
-                    Err(e) => return Err(e.into()),
+                    Err(e) => return Err(Error::RequestError(Box::new(e))),
                 };
 
                 // presumably we should try again if the server messed up?
@@ -171,17 +175,16 @@ impl Client {
                     return Ok(None);
                 }
 
-                if resp.status().is_client_error() {
-                    todo!("What error for `400` for this route?")
-                }
-
-                Ok(Some(resp.json().await?))
+                resp.json()
+                    .await
+                    .map(Some)
+                    .map_err(|it| Error::DecodeError(Box::new(it)))
             },
         )
         .await
     }
 
-    pub async fn task_status(&self, index: &str, task_id: TaskId) -> Result<TaskStatus, BoxError> {
+    pub async fn task_status(&self, index: &str, task_id: TaskId) -> Result<TaskStatus> {
         self.retry_with(
             TaskRoute {
                 index_name: index,
@@ -191,7 +194,7 @@ impl Client {
                 let resp = match self.client.get(&url).send().await {
                     Ok(resp) => resp,
                     Err(e) if e.is_timeout() => return Ok(None),
-                    Err(e) => return Err(e.into()),
+                    Err(e) => return Err(Error::RequestError(Box::new(e))),
                 };
 
                 // presumably we should try again if the server messed up?
@@ -199,11 +202,10 @@ impl Client {
                     return Ok(None);
                 }
 
-                if resp.status().is_client_error() {
-                    todo!("What error for `400` for this route?")
-                }
-
-                let resp: TaskStatusResponse = resp.json().await?;
+                let resp: TaskStatusResponse = resp
+                    .json()
+                    .await
+                    .map_err(|it| Error::DecodeError(Box::new(it)))?;
 
                 Ok(Some(resp.status))
             },
@@ -215,7 +217,7 @@ impl Client {
         &self,
         index: &str,
         request: SearchQuery,
-    ) -> Result<SearchResponse<T>, BoxError> {
+    ) -> Result<SearchResponse<T>> {
         #[derive(serde::Serialize)]
         struct Request<'a> {
             params: &'a str,
@@ -237,7 +239,7 @@ impl Client {
                 let resp = match req.send().await {
                     Ok(resp) => resp,
                     Err(e) if e.is_timeout() => return Ok(None),
-                    Err(e) => return Err(e.into()),
+                    Err(e) => return Err(Error::RequestError(Box::new(e))),
                 };
 
                 // presumably we should try again if the server messed up?
@@ -245,11 +247,18 @@ impl Client {
                     return Ok(None);
                 }
 
-                if resp.status().is_client_error() {
-                    todo!("What error for `400` for this route?")
+                if resp.status() == StatusCode::NOT_FOUND {
+                    return Err(Error::IndexNotFound(index.to_owned()));
                 }
 
-                Ok(Some(resp.json().await?))
+                if resp.status() == StatusCode::BAD_REQUEST {
+                    return Err(Error::bad_request(resp).await);
+                }
+
+                resp.json()
+                    .await
+                    .map(Some)
+                    .map_err(|it| Error::DecodeError(Box::new(it)))
             },
         )
         .await
@@ -262,7 +271,7 @@ impl Client {
         index: &str,
         object_id: &str,
         body: &T,
-    ) -> Result<ObjectUpdateResponse, BoxError> {
+    ) -> Result<ObjectUpdateResponse> {
         self.retry_with(
             ObjectRoute {
                 index_name: index,
@@ -273,7 +282,7 @@ impl Client {
                 let resp = match self.client.put(&url).json(body).send().await {
                     Ok(resp) => resp,
                     Err(e) if e.is_timeout() => return Ok(None),
-                    Err(e) => return Err(e.into()),
+                    Err(e) => return Err(Error::RequestError(Box::new(e))),
                 };
 
                 // presumably we should try again if the server messed up?
@@ -281,12 +290,14 @@ impl Client {
                     return Ok(None);
                 }
 
-                if resp.status().is_client_error() {
-                    // probably some kind of "your `body` doesn't make sense"
-                    todo!("What error for `400` for this route?")
+                if resp.status() == StatusCode::BAD_REQUEST {
+                    return Err(Error::bad_request(resp).await);
                 }
 
-                Ok(Some(resp.json().await?))
+                resp.json()
+                    .await
+                    .map(Some)
+                    .map_err(|it| Error::DecodeError(Box::new(it)))
             },
         )
         .await
@@ -304,7 +315,7 @@ impl Client {
         object_id: &str,
         body: &T,
         query: &PartialUpdateQuery,
-    ) -> Result<ObjectUpdateResponse, BoxError> {
+    ) -> Result<ObjectUpdateResponse> {
         self.retry_with(
             ObjectRoute {
                 index_name: index,
@@ -315,7 +326,7 @@ impl Client {
                 let resp = match self.client.post(&url).query(query).json(body).send().await {
                     Ok(resp) => resp,
                     Err(e) if e.is_timeout() => return Ok(None),
-                    Err(e) => return Err(e.into()),
+                    Err(e) => return Err(Error::RequestError(Box::new(e))),
                 };
 
                 // presumably we should try again if the server messed up?
@@ -323,12 +334,14 @@ impl Client {
                     return Ok(None);
                 }
 
-                if resp.status().is_client_error() {
-                    todo!("What error for `400` for this route?")
+                if resp.status() == StatusCode::BAD_REQUEST {
+                    return Err(Error::bad_request(resp).await);
                 }
 
-                // todo: figure out what happens when the update is ignored (due to not existing & `create_if_not_exists` being false)
-                Ok(Some(resp.json().await?))
+                resp.json()
+                    .await
+                    .map(Some)
+                    .map_err(|it| Error::DecodeError(Box::new(it)))
             },
         )
         .await
@@ -339,7 +352,7 @@ impl Client {
         &self,
         index: &str,
         object_id: &str,
-    ) -> Result<ObjectDeleteResponse, BoxError> {
+    ) -> Result<ObjectDeleteResponse> {
         self.retry_with(
             ObjectRoute {
                 index_name: index,
@@ -350,7 +363,7 @@ impl Client {
                 let resp = match self.client.delete(&url).send().await {
                     Ok(resp) => resp,
                     Err(e) if e.is_timeout() => return Ok(None),
-                    Err(e) => return Err(e.into()),
+                    Err(e) => return Err(Error::RequestError(Box::new(e))),
                 };
 
                 // presumably we should try again if the server messed up?
@@ -358,11 +371,10 @@ impl Client {
                     return Ok(None);
                 }
 
-                if resp.status().is_client_error() {
-                    todo!("What error for `400` for this route?")
-                }
-
-                Ok(Some(resp.json().await?))
+                resp.json()
+                    .await
+                    .map(Some)
+                    .map_err(|it| Error::DecodeError(Box::new(it)))
             },
         )
         .await
