@@ -3,6 +3,10 @@ use chrono::{DateTime, Utc};
 use serde::Deserialize;
 use std::collections::HashMap;
 
+/// A unit struct (like `()`), but as a standard struct with no fields,
+/// this allows for serde to "flatten" with it (a no-op, given the lack of anything to {de,}serialize)
+pub struct FlattenEmpty {}
+
 #[derive(Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct ObjectUpdateResponse {
@@ -26,7 +30,7 @@ pub struct ObjectDeleteResponse {
 
 #[derive(Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
-pub struct SearchResponse<T> {
+pub struct SearchResponse<T = FlattenEmpty> {
     pub hits: Vec<Hit<T>>,
 
     pub page: usize,

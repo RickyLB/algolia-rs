@@ -1,5 +1,6 @@
 use crate::{
     app_id::{AppId, RefAppId},
+    filter::Filterable,
     host::Host,
     model::task::{TaskId, TaskStatus},
     request::{PartialUpdateQuery, SearchQuery, SetSettings},
@@ -14,7 +15,7 @@ use reqwest::{
     header::{HeaderMap, HeaderValue},
     StatusCode,
 };
-use serde::de::DeserializeOwned;
+use serde::{de::DeserializeOwned, Serialize};
 use std::{fmt, future::Future, time::Duration};
 
 // todo: make the ApiKey a `RefApiKey`
@@ -213,18 +214,35 @@ impl Client {
         .await
     }
 
-    pub async fn search<T: DeserializeOwned>(
+    #[inline(always)]
+    pub async fn search<T: DeserializeOwned, Q: Filterable>(
         &self,
         index: &str,
-        request: SearchQuery,
-    ) -> Result<SearchResponse<T>> {
+        request: SearchQuery<Q>,
+    ) -> Result<SearchResponse<T>>
+    where
+        SearchQuery<Q>: Serialize,
+    {
+        let request = serde_urlencoded::to_string(request).expect("request should be serializable");
+        let request = &*request;
+
+        self.search_inner(index, request).await
+    }
+
+    // Wrapped by `search`. But removes of the generic arguments
+    // to avoid more instantiations of this function than needed.
+    async fn search_inner<T: DeserializeOwned, Q: Filterable>(
+        &self,
+        index: &str,
+        request: &str,
+    ) -> Result<SearchResponse<T>>
+    where
+        SearchQuery<Q>: Serialize,
+    {
         #[derive(serde::Serialize)]
         struct Request<'a> {
             params: &'a str,
         }
-
-        let request = serde_urlencoded::to_string(request).expect("request should be serializable");
-        let request = &*request;
 
         self.retry_with(
             IndexRoute {
