@@ -6,9 +6,9 @@ use crate::{
 use serde::ser::SerializeMap;
 
 #[derive(Default)]
-pub struct SearchQuery<T: Filterable = EmptyFilter> {
+pub struct SearchQuery<'a, T: Filterable = EmptyFilter> {
     /// The text to search in the index.
-    pub query: Option<String>,
+    pub query: Option<&'a str>,
 
     /// Specify the page to retrieve.
     pub page: Option<u32>,
@@ -23,14 +23,14 @@ pub struct SearchQuery<T: Filterable = EmptyFilter> {
 }
 
 // can't use the derive macro due to a lack of T: Serialize bound
-impl<T: Filterable> serde::Serialize for SearchQuery<T> {
+impl<T: Filterable> serde::Serialize for SearchQuery<'_, T> {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
         S: serde::Serializer,
     {
         let mut map = serializer.serialize_map(None)?;
 
-        if let Some(query) = self.query.as_deref().filter(|it| !it.is_empty()) {
+        if let Some(query) = self.query.filter(|it| !it.is_empty()) {
             map.serialize_entry("query", query)?;
         }
 

@@ -15,7 +15,7 @@ use reqwest::{
     header::{HeaderMap, HeaderValue},
     StatusCode,
 };
-use serde::{de::DeserializeOwned, Serialize};
+use serde::de::DeserializeOwned;
 use std::{fmt, future::Future, time::Duration};
 
 // todo: make the ApiKey a `RefApiKey`
@@ -218,7 +218,7 @@ impl Client {
     pub async fn search<T: DeserializeOwned, Q: Filterable>(
         &self,
         index: &str,
-        request: SearchQuery<Q>,
+        request: SearchQuery<'_, Q>,
     ) -> Result<SearchResponse<T>> {
         let request = serde_urlencoded::to_string(request).expect("request should be serializable");
         let request = &*request;

@@ -1,5 +1,4 @@
 use sealed::Sealed;
-use serde::{Serialize, Serializer};
 use std::fmt::Display;
 
 mod sealed {
@@ -167,7 +166,7 @@ impl Display for AndFilter {
     }
 }
 
-#[derive(Default, Debug)]
+#[derive(Default, Debug, Copy, Clone)]
 pub struct EmptyFilter;
 
 impl Display for EmptyFilter {
