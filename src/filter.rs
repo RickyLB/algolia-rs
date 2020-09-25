@@ -145,6 +145,7 @@ impl<T: CommonFilterKind> Display for CommonFilter<T> {
     }
 }
 
+#[derive(Default)]
 pub struct OrFilter<T: CommonFilterKind> {
     pub filters: Vec<CommonFilter<T>>,
 }
@@ -155,16 +156,18 @@ impl<T: CommonFilterKind> Display for OrFilter<T> {
     }
 }
 
+#[derive(Default)]
 pub struct AndFilter {
     pub filters: Vec<Box<dyn AndFilterable>>,
 }
 
 impl Display for AndFilter {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        Separated(&self.filters, " OR ").fmt(f)
+        Separated(&self.filters, " AND ").fmt(f)
     }
 }
 
+#[derive(Default, Debug)]
 pub struct EmptyFilter;
 
 impl Display for EmptyFilter {
@@ -172,30 +175,6 @@ impl Display for EmptyFilter {
         f.write_str("")
     }
 }
-
-pub struct Filter<T: Filterable = EmptyFilter>(pub T);
-
-impl<T: Default + Filterable> Default for Filter<T> {
-    fn default() -> Self {
-        Self(T::default())
-    }
-}
-
-impl<T: Filterable> From<T> for Filter<T> {
-    fn from(filter: T) -> Self {
-        Self(filter)
-    }
-}
-
-impl<T: Filterable> Serialize for Filter<T> {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: Serializer,
-    {
-        serializer.collect_str(&self.0)
-    }
-}
-
 macro_rules! mark {
     ($mark:ident; $( $t:ty ),+ $(,)? ) => {
         $(

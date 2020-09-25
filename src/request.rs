@@ -1,40 +1,58 @@
 use crate::{
-    filter::{Filter, Filterable},
+    filter::{EmptyFilter, Filterable},
     model::attribute::SearchableAttributes,
 };
 
-fn check_hits_per_page(max_hits: &Option<u16>) -> bool {
-    max_hits.map_or(true, |hits| hits == 20)
-}
-fn check_page(page: &Option<u32>) -> bool {
-    page.map_or(true, |page| page == 0)
-}
+use serde::ser::SerializeMap;
 
-fn check_query(query: &Option<String>) -> bool {
-    query.as_deref().unwrap_or("") == ""
-}
-
-#[derive(serde::Serialize, Default)]
-#[serde(rename_all = "camelCase")]
-pub struct SearchQuery<T: Filterable> {
+#[derive(Default)]
+pub struct SearchQuery<T: Filterable = EmptyFilter> {
     /// The text to search in the index.
-    #[serde(skip_serializing_if = "check_query")]
     pub query: Option<String>,
 
     /// Specify the page to retrieve.
-    #[serde(skip_serializing_if = "check_page")]
     pub page: Option<u32>,
 
     /// Specify the number of hits to retrieve per page.
-    #[serde(skip_serializing_if = "check_hits_per_page")]
     pub hits_per_page: Option<u16>,
 
-    #[serde(skip_serializing_if = "Option::is_none")]
-    filters: Option<Filter<T>>,
+    pub filters: Option<T>,
 
     /// Retrieve detailed ranking information.
-    #[serde(skip_serializing_if = "std::ops::Not::not")]
     pub get_ranking_info: bool,
+}
+
+// can't use the derive macro due to a lack of T: Serialize bound
+impl<T: Filterable> serde::Serialize for SearchQuery<T> {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        let mut map = serializer.serialize_map(None)?;
+
+        if let Some(query) = self.query.as_deref().filter(|it| !it.is_empty()) {
+            map.serialize_entry("query", query)?;
+        }
+
+        if let Some(page) = self.page.filter(|&it| it != 0) {
+            map.serialize_entry("page", &page)?;
+        }
+
+        if let Some(hits_per_page) = self.hits_per_page.filter(|&it| it != 20) {
+            map.serialize_entry("hitsPerPage", &hits_per_page)?;
+        }
+
+        if let Some(filters) = &self.filters {
+            map.serialize_entry("filters", &format_args!("{}", filters))?;
+        }
+
+        // algolia will guess this to be true by default.
+        if !self.get_ranking_info {
+            map.serialize_entry("getRankingInfo", &false)?;
+        }
+
+        map.end()
+    }
 }
 
 #[derive(serde::Serialize)]

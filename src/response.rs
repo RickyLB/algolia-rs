@@ -5,6 +5,7 @@ use std::collections::HashMap;
 
 /// A unit struct (like `()`), but as a standard struct with no fields,
 /// this allows for serde to "flatten" with it (a no-op, given the lack of anything to {de,}serialize)
+#[derive(Deserialize, Debug)]
 pub struct FlattenEmpty {}
 
 #[derive(Deserialize, Debug)]

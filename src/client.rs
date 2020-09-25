@@ -219,10 +219,7 @@ impl Client {
         &self,
         index: &str,
         request: SearchQuery<Q>,
-    ) -> Result<SearchResponse<T>>
-    where
-        SearchQuery<Q>: Serialize,
-    {
+    ) -> Result<SearchResponse<T>> {
         let request = serde_urlencoded::to_string(request).expect("request should be serializable");
         let request = &*request;
 
@@ -231,14 +228,11 @@ impl Client {
 
     // Wrapped by `search`. But removes of the generic arguments
     // to avoid more instantiations of this function than needed.
-    async fn search_inner<T: DeserializeOwned, Q: Filterable>(
+    async fn search_inner<T: DeserializeOwned>(
         &self,
         index: &str,
         request: &str,
-    ) -> Result<SearchResponse<T>>
-    where
-        SearchQuery<Q>: Serialize,
-    {
+    ) -> Result<SearchResponse<T>> {
         #[derive(serde::Serialize)]
         struct Request<'a> {
             params: &'a str,
