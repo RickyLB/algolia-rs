@@ -3,10 +3,10 @@ use crate::{
     filter::Filterable,
     host::Host,
     model::task::{TaskId, TaskStatus},
-    request::{PartialUpdateQuery, SearchQuery, SetSettings},
+    request::{BatchWriteRequests, PartialUpdateQuery, SearchQuery, SetSettings},
     response::{
-        ObjectDeleteResponse, ObjectUpdateResponse, SearchResponse, SettingsUpdateResponse,
-        TaskStatusResponse,
+        BatchWriteResponse, ObjectDeleteResponse, ObjectUpdateResponse, SearchResponse,
+        SettingsUpdateResponse, TaskStatusResponse,
     },
     ApiKey, Error, Result, HOST_FALLBACK_LIST,
 };
@@ -46,6 +46,7 @@ fn reqwest_client(app_id: &RefAppId, api_key: &ApiKey) -> reqwest::Result<reqwes
 enum IndexRouteKind {
     Query,
     Settings,
+    Batch,
 }
 
 impl fmt::Display for IndexRouteKind {
@@ -53,6 +54,7 @@ impl fmt::Display for IndexRouteKind {
         match self {
             Self::Query => f.write_str("query"),
             Self::Settings => f.write_str("settings"),
+            Self::Batch => f.write_str("batch"),
         }
     }
 }
@@ -152,6 +154,33 @@ impl Client {
         }
 
         Err(Error::Timeout)
+    }
+
+    pub async fn batch(&self, index: &str, req: &BatchWriteRequests) -> Result<BatchWriteResponse> {
+        self.retry_with(
+            IndexRoute {
+                index_name: index,
+                kind: Some(IndexRouteKind::Batch),
+            },
+            |url| async move {
+                let resp = match self.client.put(&url).json(req).send().await {
+                    Ok(resp) => resp,
+                    Err(e) if e.is_timeout() => return Ok(None),
+                    Err(e) => return Err(Error::RequestError(Box::new(e))),
+                };
+
+                // presumably we should try again if the server messed up?
+                if resp.status().is_server_error() {
+                    return Ok(None);
+                }
+
+                resp.json()
+                    .await
+                    .map(Some)
+                    .map_err(|it| Error::DecodeError(Box::new(it)))
+            },
+        )
+        .await
     }
 
     pub async fn set_settings(

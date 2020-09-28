@@ -3,7 +3,74 @@ use crate::{
     model::attribute::SearchableAttributes,
 };
 
-use serde::ser::SerializeMap;
+use serde::{ser::SerializeMap, Serialize};
+
+/// Perform multiple write operations in a single API call.
+/// In order to reduce the amount of time spent on network round trips, you can perform multiple write operations at once.
+/// All operations will be applied in the order they are specified.
+#[derive(Serialize)]
+pub struct BatchWriteRequests {
+    /// List of operations to batch.
+    pub requests: Vec<BatchWriteRequest>,
+}
+
+#[derive(Serialize)]
+pub enum UnimplementedOperation {}
+
+// todo: links
+/// A singular request as part of a batch.
+#[derive(Serialize)]
+#[serde(tag = "action")]
+#[serde(rename_all = "camelCase")]
+pub enum BatchWriteRequest {
+    /// Unimplemented.
+    AddObject(UnimplementedOperation),
+    /// Add or replace an existing object.
+    /// You must set the `object_id` attribute to indicate the object to update.
+    /// Equivalent to Add/update an object by ID.
+    UpdateObject {
+        #[serde(flatten)]
+        body: serde_json::Map<String, serde_json::Value>,
+        #[serde(rename = "objectID")]
+        object_id: String,
+    },
+    /// Partially update an object.
+    /// You must set the `object_id` attribute to indicate the object to update.
+    /// Equivalent to Partially update an object.
+    PartialUpdateObject {
+        #[serde(flatten)]
+        body: serde_json::Map<String, serde_json::Value>,
+        #[serde(rename = "objectID")]
+        object_id: String,
+    },
+    /// Same as `Self::PartialUpdateObject`, except that the object is not created if
+    /// the object designated by `object_id` does not exist.
+    PartialUpdateObjectNoCreate {
+        #[serde(flatten)]
+        body: serde_json::Map<String, serde_json::Value>,
+        #[serde(rename = "objectID")]
+        object_id: String,
+    },
+    /// Unimplemented.
+    DeleteObject(UnimplementedOperation),
+
+    /// Unimplemented.
+    Delete(UnimplementedOperation),
+
+    /// Unimplemented.
+    Clear(UnimplementedOperation),
+}
+
+#[test]
+fn test() {
+    dbg!(serde_json::to_string_pretty(&BatchWriteRequests {
+        requests: vec![BatchWriteRequest::UpdateObject {
+            object_id: "hiii".to_owned(),
+            body: serde_json::Map::new()
+        }]
+    })
+    .unwrap());
+}
 
 #[derive(Default)]
 pub struct SearchQuery<'a, T: Filterable = EmptyFilter> {

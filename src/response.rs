@@ -136,3 +136,14 @@ pub struct SettingsUpdateResponse {
     #[serde(rename = "taskID")]
     pub task_id: TaskId,
 }
+
+#[derive(Deserialize, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct BatchWriteResponse {
+    #[serde(rename = "taskID")]
+    pub task_id: TaskId,
+
+    #[serde(rename = "objectIDs")]
+    #[serde(default)]
+    pub object_ids: Vec<String>,
+}
