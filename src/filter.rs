@@ -9,6 +9,58 @@ pub trait CommonFilterKind: Display + Sealed {}
 pub trait AndFilterable: Display + Sealed {}
 pub trait Filterable: Display + Sealed {}
 
+// todo: consider making a Filter DSL
+
+macro_rules! make_number_ty {
+    ($number:ident; $( $( #[cfg($attrs:meta)] )? $num:ident($t:ty) ),* $(,)? ) => {
+        #[derive(Copy, Clone, Debug, PartialEq, PartialOrd)]
+        pub enum $number {
+            $(
+                $( #[cfg($attrs)] )?
+                $num($t),
+            )*
+        }
+
+        impl std::fmt::Display for $number {
+            fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+                match *self {
+                    $(
+                        $( #[cfg($attrs)] )?
+                        Self::$num(num) => num.fmt(f),
+                    )*
+                }
+            }
+        }
+
+        $(
+            $( #[cfg($attrs)])?
+            impl std::convert::From<$t> for $number {
+                #[inline(always)]
+                fn from(t: $t) -> Self {
+                    Self::$num(t)
+                }
+            }
+        )*
+    };
+}
+
+make_number_ty!(Number;
+    U8(u8),
+    U16(u16),
+    U32(u32),
+    // not sure if algolia accepts big-nums, or 64 bit _unsigned_ integers.
+    // U64(u64),
+    #[cfg(not(target_pointer_width = "64"))]
+    Usize(usize),
+    I8(i8),
+    I16(i16),
+    I32(i32),
+    I64(i64),
+    Isize(isize),
+    F32(f32),
+    F64(f64),
+);
+
 struct Separated<'a, T>(&'a [T], &'static str);
 
 impl<'a, T: Display> Display for Separated<'a, T> {
@@ -95,8 +147,18 @@ impl Display for FacetFilter {
 
 pub struct RangeFilter {
     pub attribute_name: String,
-    pub lower_bound: f64,
-    pub upper_bound: f64,
+    pub lower_bound: Number,
+    pub upper_bound: Number,
+}
+
+impl RangeFilter {
+    pub fn new<T: Into<Number>>(attribute_name: String, lower_bound: T, upper_bound: T) -> Self {
+        Self {
+            attribute_name,
+            lower_bound: lower_bound.into(),
+            upper_bound: upper_bound.into(),
+        }
+    }
 }
 
 impl Display for RangeFilter {
@@ -114,7 +176,21 @@ impl Display for RangeFilter {
 pub struct CmpFilter {
     pub attribute_name: String,
     pub operator: FilterOperator,
-    pub value: f64,
+    pub value: Number,
+}
+
+impl CmpFilter {
+    pub fn new<T: Into<Number>>(
+        attribute_name: String,
+        operator: FilterOperator,
+        value: T,
+    ) -> Self {
+        Self {
+            attribute_name,
+            operator,
+            value: value.into(),
+        }
+    }
 }
 
 impl Display for CmpFilter {
