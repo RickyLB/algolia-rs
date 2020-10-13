@@ -20,7 +20,7 @@ pub enum UnimplementedOperation {}
 // todo: links
 /// A singular request as part of a batch.
 #[derive(Serialize)]
-#[serde(tag = "action")]
+#[serde(tag = "action", content = "body")]
 #[serde(rename_all = "camelCase")]
 pub enum BatchWriteRequest {
     /// Unimplemented.

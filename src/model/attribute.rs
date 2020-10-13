@@ -106,7 +106,7 @@ impl serde::Serialize for SearchableAttribue {
 
 #[cfg(test)]
 mod test {
-    use super::{Attribute, SearchableAttribue, SearchableAttributes};
+    use super::{Attribute, SearchableAttributes};
 
     #[test]
     fn list_of_attributes() {
