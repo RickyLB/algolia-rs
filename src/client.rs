@@ -163,7 +163,7 @@ impl Client {
                 kind: Some(IndexRouteKind::Batch),
             },
             |url| async move {
-                let resp = match self.client.put(&url).json(req).send().await {
+                let resp = match self.client.post(&url).json(req).send().await {
                     Ok(resp) => resp,
                     Err(e) if e.is_timeout() => return Ok(None),
                     Err(e) => return Err(Error::RequestError(Box::new(e))),
