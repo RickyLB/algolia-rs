@@ -60,15 +60,15 @@ pub struct Hit<T> {
     #[serde(rename = "objectID")]
     pub object_id: String,
 
-    // todo: this can be single OR Vec, handle both cases
-    #[serde(rename = "_highlightResult")]
-    #[serde(default)]
-    pub highlight_result: HashMap<String, HighlightResult>,
+    // fixme: fix this and reimplement.
+    // // todo: this can be single OR Vec, handle both cases
+    // #[serde(rename = "_highlightResult")]
+    // #[serde(default)]
+    // pub highlight_result: HashMap<String, HighlightResult>,
 
-    #[serde(rename = "_snippetResult")]
-    #[serde(default)]
-    pub snippet_result: HashMap<String, SnippetResult>,
-
+    // #[serde(rename = "_snippetResult")]
+    // #[serde(default)]
+    // pub snippet_result: HashMap<String, SnippetResult>,
     #[serde(rename = "_rankingInfo")]
     pub ranking_info: Option<RankingInfo>,
 
