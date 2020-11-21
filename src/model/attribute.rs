@@ -2,7 +2,7 @@ use std::fmt::{self, Display};
 
 // an attribute is `[A-Za-z0-9\. ]+` presumably?
 #[derive(Debug, Clone)]
-pub struct Attribute(String);
+pub struct Attribute(pub String);
 
 #[derive(Debug)]
 struct SearchableAttribue {
