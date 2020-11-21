@@ -141,5 +141,5 @@ impl Default for PartialUpdateQuery {
 
 #[derive(serde::Serialize, Debug, Default)]
 pub struct SetSettings {
-    searchable_attributes: Option<SearchableAttributes>,
+    pub searchable_attributes: Option<SearchableAttributes>,
 }
