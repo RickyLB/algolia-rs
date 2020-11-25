@@ -140,6 +140,7 @@ impl Default for PartialUpdateQuery {
 }
 
 #[derive(serde::Serialize, Debug, Default)]
+#[serde(rename_all = "camelCase")]
 pub struct SetSettings {
     pub searchable_attributes: Option<SearchableAttributes>,
 }
