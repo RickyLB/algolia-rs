@@ -114,6 +114,55 @@ pub struct Client {
     api_key: ApiKey,
 }
 
+async fn decode<T: DeserializeOwned>(resp: reqwest::Response) -> Result<Option<T>, Error> {
+    resp.json()
+        .await
+        .map(Some)
+        .map_err(|it| Error::DecodeError(Box::new(it)))
+}
+
+macro_rules! unwrap_ret {
+    ($e:expr) => {
+        match $e {
+            Ok(Some(x)) => x,
+            Ok(None) => return Ok(None),
+            Err(e) => return Err(e),
+        }
+    };
+}
+
+async fn check_response(
+    resp: reqwest::Result<reqwest::Response>,
+    index: Option<&str>,
+) -> Result<Option<reqwest::Response>, Error> {
+    let resp = match resp {
+        Ok(resp) => resp,
+        Err(e) if e.is_timeout() => return Ok(None),
+        Err(e) => return Err(Error::RequestError(Box::new(e))),
+    };
+
+    // presumably we should try again if the server messed up?
+    if resp.status().is_server_error() {
+        return Ok(None);
+    }
+
+    if let Some(index) = index {
+        if resp.status() == StatusCode::NOT_FOUND {
+            return Err(Error::IndexNotFound(index.to_owned()));
+        }
+    }
+
+    if resp.status() == StatusCode::BAD_REQUEST {
+        return Err(Error::bad_request(resp).await);
+    }
+
+    if resp.status().is_client_error() {
+        return Err(Error::unexpected(resp).await);
+    }
+
+    Ok(Some(resp))
+}
+
 impl Client {
     pub fn new(application_id: AppId, api_key: ApiKey) -> Result<Self> {
         let client = reqwest_client(&application_id, &api_key)
@@ -163,21 +212,11 @@ impl Client {
                 kind: Some(IndexRouteKind::Batch),
             },
             |url| async move {
-                let resp = match self.client.post(&url).json(req).send().await {
-                    Ok(resp) => resp,
-                    Err(e) if e.is_timeout() => return Ok(None),
-                    Err(e) => return Err(Error::RequestError(Box::new(e))),
-                };
+                let resp = unwrap_ret!(
+                    check_response(self.client.post(&url).json(req).send().await, None).await
+                );
 
-                // presumably we should try again if the server messed up?
-                if resp.status().is_server_error() {
-                    return Ok(None);
-                }
-
-                resp.json()
-                    .await
-                    .map(Some)
-                    .map_err(|it| Error::DecodeError(Box::new(it)))
+                decode(resp).await
             },
         )
         .await
@@ -194,21 +233,11 @@ impl Client {
                 kind: Some(IndexRouteKind::Settings),
             },
             |url| async move {
-                let resp = match self.client.put(&url).json(req).send().await {
-                    Ok(resp) => resp,
-                    Err(e) if e.is_timeout() => return Ok(None),
-                    Err(e) => return Err(Error::RequestError(Box::new(e))),
-                };
+                let resp = unwrap_ret!(
+                    check_response(self.client.put(&url).json(req).send().await, None).await
+                );
 
-                // presumably we should try again if the server messed up?
-                if resp.status().is_server_error() {
-                    return Ok(None);
-                }
-
-                resp.json()
-                    .await
-                    .map(Some)
-                    .map_err(|it| Error::DecodeError(Box::new(it)))
+                decode(resp).await
             },
         )
         .await
@@ -221,23 +250,12 @@ impl Client {
                 task_id,
             },
             |url| async move {
-                let resp = match self.client.get(&url).send().await {
-                    Ok(resp) => resp,
-                    Err(e) if e.is_timeout() => return Ok(None),
-                    Err(e) => return Err(Error::RequestError(Box::new(e))),
-                };
+                let resp =
+                    unwrap_ret!(check_response(self.client.get(&url).send().await, None).await);
 
-                // presumably we should try again if the server messed up?
-                if resp.status().is_server_error() {
-                    return Ok(None);
-                }
-
-                let resp: TaskStatusResponse = resp
-                    .json()
+                decode::<TaskStatusResponse>(resp)
                     .await
-                    .map_err(|it| Error::DecodeError(Box::new(it)))?;
-
-                Ok(Some(resp.status))
+                    .map(|it| it.map(|it| it.status))
             },
         )
         .await
@@ -277,29 +295,9 @@ impl Client {
 
                 req = req.json(&Request { params: request });
 
-                let resp = match req.send().await {
-                    Ok(resp) => resp,
-                    Err(e) if e.is_timeout() => return Ok(None),
-                    Err(e) => return Err(Error::RequestError(Box::new(e))),
-                };
+                let resp = unwrap_ret!(check_response(req.send().await, Some(index)).await);
 
-                // presumably we should try again if the server messed up?
-                if resp.status().is_server_error() {
-                    return Ok(None);
-                }
-
-                if resp.status() == StatusCode::NOT_FOUND {
-                    return Err(Error::IndexNotFound(index.to_owned()));
-                }
-
-                if resp.status() == StatusCode::BAD_REQUEST {
-                    return Err(Error::bad_request(resp).await);
-                }
-
-                resp.json()
-                    .await
-                    .map(Some)
-                    .map_err(|it| Error::DecodeError(Box::new(it)))
+                decode(resp).await
             },
         )
         .await
@@ -320,25 +318,11 @@ impl Client {
                 partial: false,
             },
             |url| async move {
-                let resp = match self.client.put(&url).json(body).send().await {
-                    Ok(resp) => resp,
-                    Err(e) if e.is_timeout() => return Ok(None),
-                    Err(e) => return Err(Error::RequestError(Box::new(e))),
-                };
+                let resp = unwrap_ret!(
+                    check_response(self.client.put(&url).json(body).send().await, None).await
+                );
 
-                // presumably we should try again if the server messed up?
-                if resp.status().is_server_error() {
-                    return Ok(None);
-                }
-
-                if resp.status() == StatusCode::BAD_REQUEST {
-                    return Err(Error::bad_request(resp).await);
-                }
-
-                resp.json()
-                    .await
-                    .map(Some)
-                    .map_err(|it| Error::DecodeError(Box::new(it)))
+                decode(resp).await
             },
         )
         .await
@@ -364,25 +348,15 @@ impl Client {
                 partial: true,
             },
             |url| async move {
-                let resp = match self.client.post(&url).query(query).json(body).send().await {
-                    Ok(resp) => resp,
-                    Err(e) if e.is_timeout() => return Ok(None),
-                    Err(e) => return Err(Error::RequestError(Box::new(e))),
-                };
-
-                // presumably we should try again if the server messed up?
-                if resp.status().is_server_error() {
-                    return Ok(None);
-                }
-
-                if resp.status() == StatusCode::BAD_REQUEST {
-                    return Err(Error::bad_request(resp).await);
-                }
-
-                resp.json()
+                let resp = unwrap_ret!(
+                    check_response(
+                        self.client.post(&url).query(query).json(body).send().await,
+                        None
+                    )
                     .await
-                    .map(Some)
-                    .map_err(|it| Error::DecodeError(Box::new(it)))
+                );
+
+                decode(resp).await
             },
         )
         .await
@@ -401,21 +375,10 @@ impl Client {
                 partial: false,
             },
             |url| async move {
-                let resp = match self.client.delete(&url).send().await {
-                    Ok(resp) => resp,
-                    Err(e) if e.is_timeout() => return Ok(None),
-                    Err(e) => return Err(Error::RequestError(Box::new(e))),
-                };
+                let resp =
+                    unwrap_ret!(check_response(self.client.delete(&url).send().await, None).await);
 
-                // presumably we should try again if the server messed up?
-                if resp.status().is_server_error() {
-                    return Ok(None);
-                }
-
-                resp.json()
-                    .await
-                    .map(Some)
-                    .map_err(|it| Error::DecodeError(Box::new(it)))
+                decode(resp).await
             },
         )
         .await

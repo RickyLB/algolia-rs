@@ -1,7 +1,6 @@
 use crate::model::task::{TaskId, TaskStatus};
 use chrono::{DateTime, Utc};
 use serde::Deserialize;
-use std::collections::HashMap;
 
 /// A unit struct (like `()`), but as a standard struct with no fields,
 /// this allows for serde to "flatten" with it (a no-op, given the lack of anything to {de,}serialize)
