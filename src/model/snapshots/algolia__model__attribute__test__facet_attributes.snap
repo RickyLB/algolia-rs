@@ -1,0 +1,9 @@
+---
+source: src/model/attribute.rs
+expression: "vec![FacetAttribute :: new(Attribute(\"a\" . to_owned())), FacetAttribute ::\n     filter_only(Attribute(\"b\" . to_owned())), FacetAttribute ::\n     searchable(Attribute(\"b\" . to_owned())),]"
+---
+[
+  "a",
+  "filterOnly(b)",
+  "searchable(b)"
+]

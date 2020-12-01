@@ -1,6 +1,6 @@
 use crate::{
     filter::{EmptyFilter, Filterable},
-    model::attribute::SearchableAttributes,
+    model::attribute::{FacetAttribute, SearchableAttributes},
 };
 
 use serde::{ser::SerializeMap, Serialize};
@@ -139,8 +139,10 @@ impl Default for PartialUpdateQuery {
     }
 }
 
-#[derive(serde::Serialize, Debug, Default)]
+#[derive(serde::Serialize, Debug, Default, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct SetSettings {
     pub searchable_attributes: Option<SearchableAttributes>,
+    #[serde(skip_serializing_if = "std::option::Option::is_none")]
+    pub attributes_for_faceting: Option<Vec<FacetAttribute>>,
 }

@@ -4,7 +4,7 @@ use std::fmt::{self, Display};
 #[derive(Debug, Clone)]
 pub struct Attribute(pub String);
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 struct SearchableAttribue {
     unordered: bool,
     // note: all of these share the same priority
@@ -36,7 +36,7 @@ impl Display for SearchableAttribue {
     }
 }
 
-#[derive(serde::Serialize, Debug)]
+#[derive(serde::Serialize, Debug, Clone)]
 pub struct SearchableAttributes(Vec<SearchableAttribue>);
 
 impl SearchableAttributes {
@@ -104,9 +104,80 @@ impl serde::Serialize for SearchableAttribue {
     }
 }
 
+/// By default, setting a Facet enables both faceting and filtering, this can modify that to either limit it to filtering, or to also add searching.
+/// See https://www.algolia.com/doc/api-reference/api-parameters/attributesForFaceting/
+/// See https://www.algolia.com/doc/api-reference/api-methods/search-for-facet-values/
+#[derive(Copy, Clone, Debug)]
+pub enum FacetModifier {
+    FilterOnly,
+    Searchable,
+}
+
+impl FacetModifier {
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::FilterOnly => "filterOnly",
+            Self::Searchable => "searchable",
+        }
+    }
+}
+
+#[derive(Clone, Debug)]
+pub struct FacetAttribute {
+    pub attribute: Attribute,
+    pub modifier: Option<FacetModifier>,
+}
+
+impl FacetAttribute {
+    pub fn new(attribute: Attribute) -> Self {
+        Self {
+            attribute,
+            modifier: None,
+        }
+    }
+
+    pub fn with_modifier(attribute: Attribute, modifier: Option<FacetModifier>) -> Self {
+        Self {
+            attribute,
+            modifier,
+        }
+    }
+
+    pub fn filter_only(attribute: Attribute) -> Self {
+        Self {
+            attribute,
+            modifier: Some(FacetModifier::FilterOnly),
+        }
+    }
+
+    pub fn searchable(attribute: Attribute) -> Self {
+        Self {
+            attribute,
+            modifier: Some(FacetModifier::Searchable),
+        }
+    }
+}
+
+impl serde::Serialize for FacetAttribute {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        if let Some(modifier) = self.modifier {
+            serializer.collect_str(&format_args!(
+                "{}({})",
+                modifier.as_str(),
+                &self.attribute.0
+            ))
+        } else {
+            serializer.serialize_str(&self.attribute.0)
+        }
+    }
+}
+
 #[cfg(test)]
 mod test {
-    use super::{Attribute, SearchableAttributes};
+    use super::{Attribute, FacetAttribute, SearchableAttributes};
 
     #[test]
     fn list_of_attributes() {
@@ -116,5 +187,14 @@ mod test {
             .single_unordered(Attribute("e".to_owned()))
             .multi_unordered(vec![Attribute("f".to_owned()), Attribute("g".to_owned())])
             .finish())
+    }
+
+    #[test]
+    fn facet_attributes() {
+        insta::assert_json_snapshot!(vec![
+            FacetAttribute::new(Attribute("a".to_owned())),
+            FacetAttribute::filter_only(Attribute("b".to_owned())),
+            FacetAttribute::searchable(Attribute("b".to_owned())),
+        ])
     }
 }
