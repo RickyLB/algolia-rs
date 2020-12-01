@@ -142,6 +142,7 @@ impl Default for PartialUpdateQuery {
 #[derive(serde::Serialize, Debug, Default, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct SetSettings {
+    #[serde(skip_serializing_if = "std::option::Option::is_none")]
     pub searchable_attributes: Option<SearchableAttributes>,
     #[serde(skip_serializing_if = "std::option::Option::is_none")]
     pub attributes_for_faceting: Option<Vec<FacetAttribute>>,
