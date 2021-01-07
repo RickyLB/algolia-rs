@@ -3,6 +3,7 @@ use crate::{
     model::attribute::{FacetAttribute, SearchableAttributes},
 };
 
+use chrono::{DateTime, Utc};
 use serde::{ser::SerializeMap, Serialize};
 
 /// Perform multiple write operations in a single API call.
@@ -146,4 +147,48 @@ pub struct SetSettings {
     pub searchable_attributes: Option<SearchableAttributes>,
     #[serde(skip_serializing_if = "std::option::Option::is_none")]
     pub attributes_for_faceting: Option<Vec<FacetAttribute>>,
+}
+
+#[derive(serde::Serialize, Debug, Clone, Default)]
+#[serde(rename_all = "camelCase")]
+pub struct VirtualKeyRestrictions {
+    /// An identifier used by the rate-limit system to differentiate users using the same IP address.
+    user_token: Option<String>,
+
+    /// Expiration date of the API key.
+    #[serde(serialize_with = "datetime_timestamp::serialize_optional")]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    valid_until: Option<DateTime<Utc>>,
+    // todo:
+    // restrictIndices
+    // referers
+    // restrictSources
+    // searchOptions (flattened)
+}
+
+mod datetime_timestamp {
+    use chrono::{DateTime, Utc};
+    use serde::Serializer;
+
+    // this will _probably_ be useful later?
+    #[allow(dead_code)]
+    pub fn serialize<S>(dt: &DateTime<Utc>, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        serializer.serialize_i64(dt.timestamp())
+    }
+
+    pub fn serialize_optional<S>(
+        dt: &Option<DateTime<Utc>>,
+        serializer: S,
+    ) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        match dt.as_ref() {
+            Some(dt) => serializer.serialize_some(&dt.timestamp()),
+            None => serializer.serialize_none(),
+        }
+    }
 }
