@@ -4,7 +4,7 @@ use crate::{
     host::Host,
     model::task::{TaskId, TaskStatus},
     request::{
-        BatchWriteRequests, PartialUpdateQuery, SearchQuery, SetSettings, VirtualKeyRestrictions,
+        BatchWriteRequests, PartialUpdateQuery, SearchQuery, SetSettings,
     },
     response::{
         BatchWriteResponse, ObjectDeleteResponse, ObjectUpdateResponse, SearchResponse,
@@ -175,43 +175,6 @@ impl Client {
             application_id,
             api_key,
         })
-    }
-
-    /// Generate a virtual key from a "real" key.
-    ///
-    /// A virtual key is a key that is created without making a request to the algolia server, they are sub keys of other keys, the admin key cannot be used as a parent key.
-    // todo: allow for a choice of parent key (theoretically the API key given to a backend is an admin key, which cannot be used)
-    ///
-    /// # Examples
-    /// ```no_run
-    /// # // todo: make this example actually create a client?
-    /// # let client: algolia::Client = todo!();
-    /// let virtual_key = client.generate_virtual_key(&Default::default());
-    /// ```
-    pub fn generate_virtual_key(&self, restrictions: &VirtualKeyRestrictions) -> ApiKey {
-        use hmac::{Hmac, Mac, NewMac};
-
-        let restrictions = serde_urlencoded::to_string(&restrictions)
-            .expect("We control `restrictions`' format, it shouldn't error");
-
-        let mut mac = Hmac::<sha2::Sha256>::new_varkey(self.api_key.0.as_bytes())
-            .expect("HMAC can take key of any size");
-
-        mac.update(dbg!(&restrictions).as_bytes());
-
-        // note: we aren't doing any equality checks, so the warning doesn't apply.
-        let key = mac.finalize().into_bytes();
-
-        // we need to first convert the raw bytes into a hex string
-        let key = hex::encode(key);
-
-        // then base 64 encode it (without padding)
-        let mut key = base64::encode_config(key, base64::STANDARD_NO_PAD);
-
-        // and append the restrictions from earlier
-        base64::encode_config_buf(restrictions, base64::STANDARD, &mut key);
-
-        ApiKey(key)
     }
 
     async fn retry_with<
