@@ -153,6 +153,7 @@ pub struct SetSettings {
 #[serde(rename_all = "camelCase")]
 pub struct VirtualKeyRestrictions {
     /// An identifier used by the rate-limit system to differentiate users using the same IP address.
+    #[serde(skip_serializing_if = "Option::is_none")]
     user_token: Option<String>,
 
     /// Expiration date of the API key.

@@ -21,18 +21,25 @@ impl ApiKey {
     /// ```
     /// let parent_key = algolia::ApiKey("Example Key".to_owned());
     /// let virtual_key = parent_key.generate_virtual_key(&Default::default());
-    /// assert_eq!(virtual_key.0, "Zjg5MDE3Nzg5YTVlYWY4OTc2YjdlYjY5NTNmNGZhNTY4YzY5MTM3YWI5Mjg4NDQxYjFjNzU3NjRjMDRmZDMzZg==");
+    /// assert_eq!(virtual_key.0, "MDBlNTFhZmY1Y2IxM2Q4NDk3OWM2ZGQ0YTEzODAyODE4NDE4ZThjM2U4Mjg1YjNiZGY1YjIxNGM2N2JmODE0Y3VzZXJUb2tlbj0=");
     /// ```
     pub fn generate_virtual_key(&self, restrictions: &VirtualKeyRestrictions) -> ApiKey {
         use hmac::{Hmac, Mac, NewMac};
 
-        let restrictions = serde_urlencoded::to_string(&restrictions)
+        let mut restrictions = serde_urlencoded::to_string(&restrictions)
             .expect("We control `restrictions`' format, it shouldn't error");
+
+        // HACK: algolia doesn't understand empty `restrictions`
+        if restrictions.is_empty() {
+            restrictions = "userToken=".to_string();
+        }
+
+        let restrictions = restrictions;
 
         let mut mac = Hmac::<sha2::Sha256>::new_varkey(self.0.as_bytes())
             .expect("HMAC can take key of any size");
 
-        mac.update(dbg!(&restrictions).as_bytes());
+        mac.update(&restrictions.as_bytes());
 
         // note: we aren't doing any equality checks, so the warning doesn't apply.
         let key = mac.finalize().into_bytes();
