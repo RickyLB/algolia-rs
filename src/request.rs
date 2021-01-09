@@ -154,12 +154,12 @@ pub struct SetSettings {
 pub struct VirtualKeyRestrictions {
     /// An identifier used by the rate-limit system to differentiate users using the same IP address.
     #[serde(skip_serializing_if = "Option::is_none")]
-    user_token: Option<String>,
+    pub user_token: Option<String>,
 
     /// Expiration date of the API key.
     #[serde(serialize_with = "datetime_timestamp::serialize_optional")]
     #[serde(skip_serializing_if = "Option::is_none")]
-    valid_until: Option<DateTime<Utc>>,
+    pub valid_until: Option<DateTime<Utc>>,
     // todo:
     // restrictIndices
     // referers
