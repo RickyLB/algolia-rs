@@ -21,7 +21,7 @@ impl ApiKey {
     /// ```
     /// let parent_key = algolia::ApiKey("Example Key".to_owned());
     /// let virtual_key = parent_key.generate_virtual_key(&Default::default());
-    /// assert_eq!(virtual_key.0, "Zjg5MDE3Nzg5YTVlYWY4OTc2YjdlYjY5NTNmNGZhNTY4YzY5MTM3YWI5Mjg4NDQxYjFjNzU3NjRjMDRmZDMzZg");
+    /// assert_eq!(virtual_key.0, "Zjg5MDE3Nzg5YTVlYWY4OTc2YjdlYjY5NTNmNGZhNTY4YzY5MTM3YWI5Mjg4NDQxYjFjNzU3NjRjMDRmZDMzZg==");
     /// ```
     pub fn generate_virtual_key(&self, restrictions: &VirtualKeyRestrictions) -> ApiKey {
         use hmac::{Hmac, Mac, NewMac};
@@ -38,13 +38,13 @@ impl ApiKey {
         let key = mac.finalize().into_bytes();
 
         // we need to first convert the raw bytes into a hex string
-        let key = hex::encode(key);
+        let mut key = hex::encode(key);
 
-        // then base 64 encode it (without padding)
-        let mut key = base64::encode_config(key, base64::STANDARD_NO_PAD);
+        // then merge it with the restrictions from earlier
+        key.push_str(&restrictions);
 
-        // and append the restrictions from earlier
-        base64::encode_config_buf(restrictions, base64::STANDARD, &mut key);
+        // then base 64 encode it
+        let key = base64::encode(key);
 
         ApiKey(key)
     }
