@@ -48,8 +48,6 @@ make_number_ty!(Number;
     U8(u8),
     U16(u16),
     U32(u32),
-    // not sure if algolia accepts big-nums, or 64 bit _unsigned_ integers.
-    // U64(u64),
     #[cfg(not(target_pointer_width = "64"))]
     Usize(usize),
     I8(i8),
