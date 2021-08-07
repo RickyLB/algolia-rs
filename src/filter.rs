@@ -143,6 +143,34 @@ impl Display for FacetFilter {
     }
 }
 
+/// Scored facet filtering. Is *not* `AndFilterable`, see algolia docs:
+/// https://www.algolia.com/doc/guides/managing-results/refine-results/filtering/in-depth/filter-scoring/
+pub struct ScoredFacetFilter {
+    pub facet_name: String,
+    pub value: String,
+    // NOTE (accurate as of 2021/08/06):
+    //
+    // `score` must be in range 0...i64::MAX.
+    // Queries will return with 400 BAD_REQUEST if given any of "-123", "-0", or i64::MAX+1.
+    pub score: i64,
+}
+
+impl Display for ScoredFacetFilter {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        if self.score > i64::MAX {
+            return Err(std::fmt::Error);
+        }
+
+        write!(
+            f,
+            r#""{}":"{}"<score={}>"#,
+            self.facet_name.escape_debug(),
+            self.value.escape_debug(),
+            self.score,
+        )
+    }
+}
+
 pub struct RangeFilter {
     pub attribute_name: String,
     pub lower_bound: Number,
@@ -256,8 +284,8 @@ macro_rules! mark {
     };
 }
 
-mark!(Sealed; BooleanFilter, TagFilter, FacetFilter, RangeFilter, CmpFilter, AndFilter, EmptyFilter);
-mark!(CommonFilterKind; BooleanFilter, TagFilter, FacetFilter, RangeFilter, CmpFilter);
+mark!(Sealed; BooleanFilter, TagFilter, FacetFilter, ScoredFacetFilter, RangeFilter, CmpFilter, AndFilter, EmptyFilter);
+mark!(CommonFilterKind; BooleanFilter, TagFilter, FacetFilter, ScoredFacetFilter, RangeFilter, CmpFilter);
 
 impl<T: CommonFilterKind> Sealed for CommonFilter<T> {}
 impl<T: CommonFilterKind> Sealed for OrFilter<T> {}

@@ -3,9 +3,7 @@ use crate::{
     filter::Filterable,
     host::Host,
     model::task::{TaskId, TaskStatus},
-    request::{
-        BatchWriteRequests, PartialUpdateQuery, SearchQuery, SetSettings,
-    },
+    request::{BatchWriteRequests, PartialUpdateQuery, SearchQuery, SetSettings},
     response::{
         BatchWriteResponse, ObjectDeleteResponse, ObjectUpdateResponse, SearchResponse,
         SettingsUpdateResponse, TaskStatusResponse,

@@ -88,6 +88,9 @@ pub struct SearchQuery<'a, T: Filterable = EmptyFilter> {
 
     /// Retrieve detailed ranking information.
     pub get_ranking_info: bool,
+
+    /// Whether to sum the scores of scored Or filters
+    pub sum_or_filters_scores: bool,
 }
 
 // can't use the derive macro due to a lack of T: Serialize bound
@@ -117,6 +120,11 @@ impl<T: Filterable> serde::Serialize for SearchQuery<'_, T> {
         // algolia will guess this to be true by default.
         if !self.get_ranking_info {
             map.serialize_entry("getRankingInfo", &false)?;
+        }
+
+        // algolia will guess this to the false by default.
+        if self.sum_or_filters_scores {
+            map.serialize_entry("sumOrFiltersScores", &true)?;
         }
 
         map.end()
