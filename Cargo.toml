@@ -7,24 +7,24 @@ license = "MIT OR Apache-2.0"
 
 [dependencies]
 base64 = "0.13.0"
-hex = "0.4.2"
-hmac = "0.10.1"
-rand = "0.8.1"
-serde_json = "1.0.57"
+hex = "0.4.3"
+hmac = "0.11.0"
+rand = "0.8.4"
+serde_json = "1.0.66"
 serde_urlencoded = "0.7.0"
-sha2 = "0.9.2"
-thiserror = "1.0.20"
+sha2 = "0.9.5"
+thiserror = "^1.0"
 
 [dependencies.chrono]
 version = "0.4.19"
 features = ["serde"]
 
 [dependencies.serde]
-version = "1.0.115"
+version = "1.0.127"
 features = ["derive"]
 
 [dependencies.reqwest]
-version = "0.10.7"
+version = "0.11.4"
 features = ["json"]
 
 [dependencies.tokio]
@@ -32,4 +32,4 @@ version = "1.10.0"
 features = ["macros"]
 
 [dev-dependencies]
-insta = "1.5"
+insta = "1.7.2"

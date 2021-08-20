@@ -36,7 +36,7 @@ impl ApiKey {
 
         let restrictions = restrictions;
 
-        let mut mac = Hmac::<sha2::Sha256>::new_varkey(self.0.as_bytes())
+        let mut mac = Hmac::<sha2::Sha256>::new_from_slice(self.0.as_bytes())
             .expect("HMAC can take key of any size");
 
         mac.update(&restrictions.as_bytes());
