@@ -1,6 +1,6 @@
 use crate::{
     app_id::{AppId, RefAppId},
-    filter::Filterable,
+    filter::{CommonFilter, Filterable, CommonFilterKind},
     host::Host,
     model::task::{TaskId, TaskStatus},
     request::{BatchWriteRequests, PartialUpdateQuery, SearchQuery, SetSettings},
@@ -178,7 +178,7 @@ impl Client {
     async fn retry_with<
         T: fmt::Display,
         O,
-        Fut: Future<Output = Result<Option<O>>>,
+        Fut: Future<Output=Result<Option<O>>>,
         Fn: FnMut(String) -> Fut,
     >(
         &self,
@@ -194,7 +194,7 @@ impl Client {
                 Host::with_backup(&self.application_id, Some(backup_number)),
                 &route,
             ))
-            .await
+                .await
             {
                 Ok(None) => continue,
                 Ok(Some(res)) => return Ok(res),
@@ -219,7 +219,7 @@ impl Client {
                 decode(resp).await
             },
         )
-        .await
+            .await
     }
 
     pub async fn set_settings(
@@ -240,7 +240,7 @@ impl Client {
                 decode(resp).await
             },
         )
-        .await
+            .await
     }
 
     pub async fn task_status(&self, index: &str, task_id: TaskId) -> Result<TaskStatus> {
@@ -258,32 +258,45 @@ impl Client {
                     .map(|it| it.map(|it| it.status))
             },
         )
-        .await
+            .await
     }
 
     #[inline(always)]
-    pub async fn search<T: DeserializeOwned, Q: Filterable>(
+    pub async fn search<T: CommonFilterKind, U: Filterable, V: DeserializeOwned>(
         &self,
         index: &str,
-        request: SearchQuery<'_, Q>,
-    ) -> Result<SearchResponse<T>> {
+        request: SearchQuery<'_, T, U>,
+    ) -> Result<SearchResponse<V>> {
+        let optional_filters = request
+            .optional_filters
+            .as_deref()
+            .unwrap_or_default()
+            .iter()
+            .map(|it: &CommonFilter<T>| format!("{}", it))
+            .collect::<Vec<_>>();
+
         let request = serde_urlencoded::to_string(request).expect("request should be serializable");
         let request = &*request;
 
-        self.search_inner(index, request).await
+        self.search_inner(index, request, &optional_filters).await
     }
 
     // Wrapped by `search`. But removes of the generic arguments
     // to avoid more instantiations of this function than needed.
-    async fn search_inner<T: DeserializeOwned>(
+    async fn search_inner<T: DeserializeOwned, U: AsRef<str>>(
         &self,
         index: &str,
         request: &str,
+        optional_filters: &[U],
     ) -> Result<SearchResponse<T>> {
         #[derive(serde::Serialize)]
+        #[serde(rename_all = "camelCase")]
         struct Request<'a> {
             params: &'a str,
+            optional_filters: &'a [&'a str],
         }
+
+        let optional_filters = &optional_filters.into_iter().map(|it| it.as_ref()).collect::<Vec<_>>();
 
         self.retry_with(
             IndexRoute {
@@ -293,14 +306,14 @@ impl Client {
             |url| async move {
                 let mut req = self.client.post(&url);
 
-                req = req.json(&Request { params: request });
+                req = req.json(&Request { params: request, optional_filters });
 
                 let resp = unwrap_ret!(check_response(req.send().await, Some(index)).await);
 
                 decode(resp).await
             },
         )
-        .await
+            .await
     }
 
     /// Add or replace an object with a given object ID.
@@ -325,7 +338,7 @@ impl Client {
                 decode(resp).await
             },
         )
-        .await
+            .await
     }
 
     /// Partially update an object.
@@ -359,7 +372,7 @@ impl Client {
                 decode(resp).await
             },
         )
-        .await
+            .await
     }
 
     /// Delete an existing object from an index.
@@ -381,6 +394,6 @@ impl Client {
                 decode(resp).await
             },
         )
-        .await
+            .await
     }
 }

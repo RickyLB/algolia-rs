@@ -5,6 +5,7 @@ use crate::{
 
 use chrono::{DateTime, Utc};
 use serde::{ser::SerializeMap, Serialize};
+use crate::filter::{CommonFilter, CommonFilterKind};
 
 /// Perform multiple write operations in a single API call.
 /// In order to reduce the amount of time spent on network round trips, you can perform multiple write operations at once.
@@ -74,7 +75,7 @@ fn test() {
 }
 
 #[derive(Default)]
-pub struct SearchQuery<'a, T: Filterable = EmptyFilter> {
+pub struct SearchQuery<'a, T: CommonFilterKind, U: Filterable = EmptyFilter> {
     /// The text to search in the index.
     pub query: Option<&'a str>,
 
@@ -84,7 +85,11 @@ pub struct SearchQuery<'a, T: Filterable = EmptyFilter> {
     /// Specify the number of hits to retrieve per page.
     pub hits_per_page: Option<u16>,
 
-    pub filters: Option<T>,
+    /// Search filters.
+    pub filters: Option<U>,
+
+    /// Optional filters, passed as a part of the request body.
+    pub optional_filters: Option<Vec<CommonFilter<T>>>,
 
     /// Retrieve detailed ranking information.
     pub get_ranking_info: bool,
@@ -94,7 +99,7 @@ pub struct SearchQuery<'a, T: Filterable = EmptyFilter> {
 }
 
 // can't use the derive macro due to a lack of T: Serialize bound
-impl<T: Filterable> serde::Serialize for SearchQuery<'_, T> {
+impl<T: CommonFilterKind, U: Filterable > serde::Serialize for SearchQuery<'_, T, U> {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
         S: serde::Serializer,
