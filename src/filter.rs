@@ -163,7 +163,7 @@ impl Display for ScoredFacetFilter {
 
         write!(
             f,
-            r#""{}":"{}"<score={}>"#,
+            r#"{}:{}<score={}>"#,
             self.facet_name.escape_debug(),
             self.value.escape_debug(),
             self.score,
@@ -284,11 +284,11 @@ macro_rules! mark {
     };
 }
 
-mark!(Sealed; BooleanFilter, TagFilter, FacetFilter, ScoredFacetFilter, RangeFilter, CmpFilter, AndFilter, EmptyFilter);
-mark!(CommonFilterKind; BooleanFilter, TagFilter, FacetFilter, ScoredFacetFilter, RangeFilter, CmpFilter);
+mark!(Sealed; BooleanFilter, TagFilter, FacetFilter, ScoredFacetFilter, RangeFilter, CmpFilter, AndFilter, EmptyFilter, String);
+mark!(CommonFilterKind; BooleanFilter, TagFilter, FacetFilter, ScoredFacetFilter, RangeFilter, CmpFilter, String);
 
-impl<T: CommonFilterKind> Sealed for CommonFilter<T> {}
 impl<T: CommonFilterKind> Sealed for OrFilter<T> {}
+impl<T: CommonFilterKind> Sealed for CommonFilter<T> {}
 
 impl<T: CommonFilterKind> AndFilterable for OrFilter<T> {}
 impl<T: CommonFilterKind> AndFilterable for CommonFilter<T> {}
