@@ -63,6 +63,8 @@ struct Separated<'a, T>(&'a [T], &'static str);
 
 impl<'a, T: Display> Display for Separated<'a, T> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str("(")?;
+
         let mut iter = self.0.iter();
 
         if let Some(item) = iter.next() {
@@ -73,6 +75,8 @@ impl<'a, T: Display> Display for Separated<'a, T> {
             f.write_str(self.1)?;
             item.fmt(f)?;
         }
+
+        f.write_str(")")?;
 
         Ok(())
     }
