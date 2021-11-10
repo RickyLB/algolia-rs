@@ -59,9 +59,28 @@ make_number_ty!(Number;
     F64(f64),
 );
 
-struct Separated<'a, T>(&'a [T], &'static str);
+struct AndSeparated<'a, T>(&'a [T], &'static str);
 
-impl<'a, T: Display> Display for Separated<'a, T> {
+impl<'a, T: Display> Display for AndSeparated<'a, T> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let mut iter = self.0.iter();
+
+        if let Some(item) = iter.next() {
+            item.fmt(f)?;
+        }
+
+        for item in iter {
+            f.write_str(self.1)?;
+            item.fmt(f)?;
+        }
+
+        Ok(())
+    }
+}
+
+struct OrSeparated<'a, T>(&'a [T], &'static str);
+
+impl<'a, T: Display> Display for OrSeparated<'a, T> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.write_str("(")?;
 
@@ -257,7 +276,7 @@ pub struct OrFilter<T: CommonFilterKind> {
 
 impl<T: CommonFilterKind> Display for OrFilter<T> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        Separated(&self.filters, " OR ").fmt(f)
+        OrSeparated(&self.filters, " OR ").fmt(f)
     }
 }
 
@@ -268,7 +287,7 @@ pub struct AndFilter {
 
 impl Display for AndFilter {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        Separated(&self.filters, " AND ").fmt(f)
+        AndSeparated(&self.filters, " AND ").fmt(f)
     }
 }
 
