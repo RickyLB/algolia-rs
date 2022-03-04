@@ -3,9 +3,9 @@ use crate::{
     model::attribute::{FacetAttribute, SearchableAttributes},
 };
 
+use crate::filter::{CommonFilter, CommonFilterKind};
 use chrono::{DateTime, Utc};
 use serde::{ser::SerializeMap, Serialize};
-use crate::filter::{CommonFilter, CommonFilterKind};
 
 /// Perform multiple write operations in a single API call.
 /// In order to reduce the amount of time spent on network round trips, you can perform multiple write operations at once.
@@ -96,10 +96,13 @@ pub struct SearchQuery<'a, T: CommonFilterKind, U: Filterable = EmptyFilter> {
 
     /// Whether to sum the scores of scored Or filters
     pub sum_or_filters_scores: bool,
+
+    /// Maximum number of hits accessible via pagination
+    pub pagination_limited_to: Option<u32>,
 }
 
 // can't use the derive macro due to a lack of T: Serialize bound
-impl<T: CommonFilterKind, U: Filterable > serde::Serialize for SearchQuery<'_, T, U> {
+impl<T: CommonFilterKind, U: Filterable> serde::Serialize for SearchQuery<'_, T, U> {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
         S: serde::Serializer,
@@ -130,6 +133,11 @@ impl<T: CommonFilterKind, U: Filterable > serde::Serialize for SearchQuery<'_, T
         // algolia will guess this to the false by default.
         if self.sum_or_filters_scores {
             map.serialize_entry("sumOrFiltersScores", &true)?;
+        }
+
+        // algolia will guess this to the false by default.
+        if let Some(pagination_limited_to) = self.pagination_limited_to.filter(|&it| it != 0) {
+            map.serialize_entry("paginationLimitedTo", &pagination_limited_to)?;
         }
 
         map.end()
