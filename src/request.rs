@@ -136,7 +136,7 @@ impl<T: CommonFilterKind, U: Filterable> serde::Serialize for SearchQuery<'_, T,
         }
 
         // algolia will guess this to the false by default.
-        if let Some(pagination_limited_to) = self.pagination_limited_to.filter(|&it| it != 0) {
+        if let Some(pagination_limited_to) = self.pagination_limited_to.filter(|&it| it != 1000) {
             map.serialize_entry("paginationLimitedTo", &pagination_limited_to)?;
         }
 
